@@ -1,4 +1,4 @@
-name: Google Cloud Function Deployment (Python)
+name: Google Cloud Function Deployment (Python 3.13)
 
 on:
   push:
@@ -20,36 +20,39 @@ jobs:
       with:
         credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
 
-    - name: Debug GCP credentials
+    - name: Debug GCP credentials (optional)
       env:
         GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
       run: |
         echo "$GOOGLE_APPLICATION_CREDENTIALS" > credentials.json
 
-    - name: 'Set up Cloud SDK'
+    - name: Set up Cloud SDK
       uses: 'google-github-actions/setup-gcloud@v2'
 
-    - name: 'Use gcloud CLI'
-      run: 'gcloud info'
+    - name: Show gcloud info (debug)
+      run: gcloud info
 
-    - name: 'Deploy Python Cloud Function (Gen 2)'
+    - name: Deploy Python 3.13 Cloud Function (Gen 2)
       run: |
         gcloud functions deploy cobain \
           --region=asia-southeast2 \
-          --allow-unauthenticated \
-          --entry-point=coba \
           --gen2 \
           --runtime=python313 \
+          --entry-point=coba \
           --trigger-http \
           --source=. \
+          --allow-unauthenticated \
           --timeout=540s \
-          --set-env-vars "MONGOSTRING=${{ secrets.MONGOSTRING }}"
+          --set-env-vars="MONGOSTRING=${{ secrets.MONGOSTRING }}"
 
-    - name: 'Cek eksistensi fungsi'
-      run: 'gcloud functions describe cobain --region=asia-southeast2'
+    - name: Cek eksistensi fungsi
+      run: |
+        gcloud functions describe cobain --region=asia-southeast2 || echo "Function belum ditemukan"
 
-    - name: 'Cek log debugging'
-      run: 'gcloud functions logs cobain --region=asia-southeast2'
+    - name: Cek log debugging
+      run: |
+        gcloud functions logs read cobain --region=asia-southeast2 --limit=50 || echo "Belum ada log, atau function belum tersedia"
 
-    - name: 'Cleaning Artifact Registry (opsional)'
-      run: 'gcloud artifacts repositories delete gcf-artifacts --location=asia-southeast2 --quiet || echo "Repository tidak ditemukan, skip delete."'
+    - name: Cleaning Artifact Registry (opsional)
+      run: |
+        gcloud artifacts repositories delete gcf-artifacts --location=asia-southeast2 --quiet || echo "Repository tidak ditemukan, skip delete"
