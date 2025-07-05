@@ -1,0 +1,55 @@
+name: Google Cloud Function Deployment (Python)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  Deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: GCP Authentication
+      id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
+
+    - name: Debug GCP credentials
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+      run: |
+        echo "$GOOGLE_APPLICATION_CREDENTIALS" > credentials.json
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: 'Use gcloud CLI'
+      run: 'gcloud info'
+
+    - name: 'Deploy Python Cloud Function (Gen 2)'
+      run: |
+        gcloud functions deploy cobain \
+          --region=asia-southeast2 \
+          --allow-unauthenticated \
+          --entry-point=coba \
+          --gen2 \
+          --runtime=python313 \
+          --trigger-http \
+          --source=. \
+          --timeout=540s \
+          --set-env-vars "MONGOSTRING=${{ secrets.MONGOSTRING }}"
+
+    - name: 'Cek eksistensi fungsi'
+      run: 'gcloud functions describe cobain --region=asia-southeast2'
+
+    - name: 'Cek log debugging'
+      run: 'gcloud functions logs cobain --region=asia-southeast2'
+
+    - name: 'Cleaning Artifact Registry (opsional)'
+      run: 'gcloud artifacts repositories delete gcf-artifacts --location=asia-southeast2 --quiet || echo "Repository tidak ditemukan, skip delete."'
